@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Crypto Card Ranker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./assets/styles.css">
+</head>
+<body>
+  <header>
+    <div class="header-inner">
+      <div class="brand">⚡ Crypto Card Ranker</div>
+      <div class="hint">Live data from your Google Sheet</div>
+    </div>
+    <div class="controls">
+      <div class="control"><label for="search">Search</label><input id="search" placeholder="Search cards, issuers, countries..." /></div>
+      <div class="control"><label for="issuer">Issuer</label><select id="issuer"></select></div>
+      <div class="control"><label for="network">Network</label><select id="network"></select></div>
+      <div class="control"><label for="country">Country</label><select id="country"></select></div>
+      <div class="control"><label for="sort">Sort by</label><select id="sort"></select></div>
+    </div>
+    <div class="toolbar">
+      <div class="meta" id="meta">Loading…</div>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <button class="btn" id="reload">Reload</button>
+        <button class="btn" id="runTests" title="Run built-in tests">Run Tests</button>
+        <a id="sheetLink" class="meta" target="_blank" rel="noopener">Open Sheet ↗</a>
+      </div>
+    </div>
+  </header>
+
+  <div id="status" class="status" aria-live="polite"></div>
+
+  <main class="container">
+    <div id="grid" class="grid" aria-live="polite"></div>
+    <div id="empty" class="empty" style="display:none;">No cards match your filters.</div>
+    <div id="error" class="error" style="display:none;">Couldn't load the sheet. Check the publish link or CORS settings.</div>
+  </main>
+
+  <details class="diag">
+    <summary>Diagnostics</summary>
+    <pre id="diag"></pre>
+  </details>
+
+  <!-- CSV parser (global Papa) -->
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <!-- App entry point -->
+  <script type="module" src="./src/app.js"></script>
+</body>
+</html>

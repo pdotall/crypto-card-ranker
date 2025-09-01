@@ -1,0 +1,51 @@
+
+:root{
+  --bg: #0b1020; --panel: #121a35; --muted: #9bb0d3; --text: #e6ecff;
+  --accent: #6aa1ff; --accent-2: #90f0ff; --ok:#39d98a; --warn:#ffd166; --bad:#ff6b6b;
+  --card-radius: 16px; --shadow: 0 10px 25px rgba(0,0,0,.35);
+}
+html,body{height:100%}
+body{
+  margin:0; font-family:Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Apple Color Emoji";
+  color:var(--text);
+  background: radial-gradient(1200px 700px at 20% -10%, #1b2550, transparent 50%),
+              radial-gradient(1200px 700px at 80% -20%, #0f5ab4, transparent 50%),
+              linear-gradient(180deg, #0b1020, #0b1020);
+  background-attachment: fixed; overflow-y:overlay;
+}
+a{ color: var(--accent-2); text-decoration: none; }  a:hover{ text-decoration: underline; }
+.container{ max-width:1200px; margin:0 auto; padding: 24px; }
+header{ position: sticky; top:0; z-index: 10; background: rgba(11,16,32,.7); backdrop-filter: blur(8px); border-bottom: 1px solid rgba(255,255,255,.06); }
+.header-inner{ display:flex; align-items:center; gap:16px; padding: 14px 24px; }
+.brand{ font-weight:700; letter-spacing:.3px; font-size: 18px; }
+.hint{ color: var(--muted); font-size:12px; }
+.controls{ display:grid; grid-template-columns: 1fr 140px 140px 140px 180px; gap:12px; padding: 12px 24px 16px; }
+.control{ background: var(--panel); border: 1px solid rgba(255,255,255,.06); border-radius: 12px; display:flex; align-items:center; gap:8px; padding: 10px 12px; }
+.control input, .control select{ width:100%; background:transparent; border:none; outline:none; color:var(--text); font:inherit; }
+.control label{ font-size:12px; color:var(--muted); }
+.toolbar{ display:flex; align-items:center; justify-content: space-between; gap: 12px; padding: 0 24px 8px; }
+.toolbar .meta{ font-size:12px; color: var(--muted); }
+.btn{ background: linear-gradient(135deg, var(--accent), var(--accent-2)); color:#081021; border:none; font-weight:600; border-radius: 10px; padding: 8px 12px; cursor:pointer; box-shadow: var(--shadow); }
+.btn:disabled{ opacity:.5; cursor: not-allowed; }
+.status{ margin:0 24px 8px; padding:10px 12px; border-radius:10px; border:1px solid rgba(255,255,255,.08); background:rgba(255,255,255,.06); font-size:12px; display:none; }
+.status.ok{ display:block; background: rgba(57,217,138,.08); border-color: rgba(57,217,138,.5);} 
+.status.warn{ display:block; background: rgba(255,209,102,.08); border-color: rgba(255,209,102,.5);} 
+.status.bad{ display:block; background: rgba(255,107,107,.08); border-color: rgba(255,107,107,.5);} 
+.grid{ display:grid; grid-template-columns: repeat(auto-fill, minmax(260px,1fr)); gap:16px; padding: 8px 24px 32px; }
+.card{ background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02)); border:1px solid rgba(255,255,255,.07); border-radius: var(--card-radius); box-shadow: var(--shadow); overflow:hidden; display:flex; flex-direction:column; }
+.card-head{ padding: 14px 14px 0; display:flex; align-items:center; gap:10px; }
+.badge{ font-size: 11px; color:#06122a; background: linear-gradient(135deg, #8ad3ff, #c3ffe6); padding:6px 10px; border-radius: 999px; font-weight:700; }
+.title{ font-weight:700; font-size: 16px; line-height:1.1; }
+.kv{ padding: 12px 14px; display:grid; grid-template-columns: 1fr; gap:6px; }
+.kv-row{ display:flex; align-items:center; justify-content: space-between; gap:8px; background: rgba(255,255,255,.04); padding:8px 10px; border-radius: 10px; }
+.kv-key{ color:var(--muted); font-size:12px; }
+.kv-val{ font-weight:600; font-size: 13px; text-align:right; }
+.card-actions{ display:flex; gap:8px; padding: 12px 14px 14px; }
+.link{ flex:1; text-align:center; border-radius:10px; background: rgba(255,255,255,.08); padding: 9px 10px; font-weight:600; }
+.link:hover{ background: rgba(255,255,255,.12); }
+.empty, .error{ padding: 40px 24px; text-align:center; color:var(--muted); }
+.skeleton{ height: 210px; border-radius: var(--card-radius); background: linear-gradient(90deg, rgba(255,255,255,.06), rgba(255,255,255,.03), rgba(255,255,255,.06)); background-size: 300% 100%; animation: shimmer 1.4s infinite; }
+@keyframes shimmer{ 0%{ background-position: 0 0; } 100%{ background-position: 100% 0; } }
+@media (max-width: 900px){ .controls{ grid-template-columns: 1fr 1fr; } }
+details.diag{ margin: 6px 24px 16px; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.08); border-radius:12px; padding:10px 12px; }
+details.diag pre{ white-space:pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; font-size:12px; color:#c9d4f6; }
