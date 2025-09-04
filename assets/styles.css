@@ -1,51 +1,330 @@
+/* =========================================================
+   DAEDALUS â€” BLACK & WHITE THEME (clean, consolidated)
+   ========================================================= */
 
+/* ---------- Theme tokens ---------- */
 :root{
-  --bg: #0b1020; --panel: #121a35; --muted: #9bb0d3; --text: #e6ecff;
-  --accent: #6aa1ff; --accent-2: #90f0ff; --ok:#39d98a; --warn:#ffd166; --bad:#ff6b6b;
-  --card-radius: 16px; --shadow: 0 10px 25px rgba(0,0,0,.35);
+  --bg: #0a0a0a;
+  --panel: rgba(255,255,255,.06);
+  --text: #ffffff;
+  --muted: #bdbdbd;
+  --ink: #ffffff;
+  --ink-dim: #d6d6d6;
+  --ring: #ffffff;
+
+  /* layout knobs */
+  --page-gutter: clamp(12px, 3vw, 28px);
+  --score-col: 180px;            /* width of SCORE column for rows + header */
+  --score-label-pad: 18px;       /* nudge "Score" label to the right inside its column */
+  --rank-gap: 6px;               /* gap between rank number and "Crypto Card Rank" */
+
+  /* logo sizes */
+  --logo-height: 29px;
+  --logo-height-sm: 24px;
 }
+
+/* ---------- Base ---------- */
 html,body{height:100%}
 body{
-  margin:0; font-family:Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Apple Color Emoji";
+  margin:0;
+  font-family:Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Apple Color Emoji";
   color:var(--text);
-  background: radial-gradient(1200px 700px at 20% -10%, #1b2550, transparent 50%),
-              radial-gradient(1200px 700px at 80% -20%, #0f5ab4, transparent 50%),
-              linear-gradient(180deg, #0b1020, #0b1020);
-  background-attachment: fixed; overflow-y:overlay;
+  background: var(--bg);
 }
-a{ color: var(--accent-2); text-decoration: none; }  a:hover{ text-decoration: underline; }
-.container{ max-width:1200px; margin:0 auto; padding: 24px; }
-header{ position: sticky; top:0; z-index: 10; background: rgba(11,16,32,.7); backdrop-filter: blur(8px); border-bottom: 1px solid rgba(255,255,255,.06); }
-.header-inner{ display:flex; align-items:center; gap:16px; padding: 14px 24px; }
-.brand{ font-weight:700; letter-spacing:.3px; font-size: 18px; }
-.hint{ color: var(--muted); font-size:12px; }
-.controls{ display:grid; grid-template-columns: 1fr 140px 140px 140px 180px; gap:12px; padding: 12px 24px 16px; }
-.control{ background: var(--panel); border: 1px solid rgba(255,255,255,.06); border-radius: 12px; display:flex; align-items:center; gap:8px; padding: 10px 12px; }
-.control input, .control select{ width:100%; background:transparent; border:none; outline:none; color:var(--text); font:inherit; }
-.control label{ font-size:12px; color:var(--muted); }
-.toolbar{ display:flex; align-items:center; justify-content: space-between; gap: 12px; padding: 0 24px 8px; }
-.toolbar .meta{ font-size:12px; color: var(--muted); }
-.btn{ background: linear-gradient(135deg, var(--accent), var(--accent-2)); color:#081021; border:none; font-weight:600; border-radius: 10px; padding: 8px 12px; cursor:pointer; box-shadow: var(--shadow); }
-.btn:disabled{ opacity:.5; cursor: not-allowed; }
-.status{ margin:0 24px 8px; padding:10px 12px; border-radius:10px; border:1px solid rgba(255,255,255,.08); background:rgba(255,255,255,.06); font-size:12px; display:none; }
-.status.ok{ display:block; background: rgba(57,217,138,.08); border-color: rgba(57,217,138,.5);} 
-.status.warn{ display:block; background: rgba(255,209,102,.08); border-color: rgba(255,209,102,.5);} 
-.status.bad{ display:block; background: rgba(255,107,107,.08); border-color: rgba(255,107,107,.5);} 
-.grid{ display:grid; grid-template-columns: repeat(auto-fill, minmax(260px,1fr)); gap:16px; padding: 8px 24px 32px; }
-.card{ background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02)); border:1px solid rgba(255,255,255,.07); border-radius: var(--card-radius); box-shadow: var(--shadow); overflow:hidden; display:flex; flex-direction:column; }
-.card-head{ padding: 14px 14px 0; display:flex; align-items:center; gap:10px; }
-.badge{ font-size: 11px; color:#06122a; background: linear-gradient(135deg, #8ad3ff, #c3ffe6); padding:6px 10px; border-radius: 999px; font-weight:700; }
-.title{ font-weight:700; font-size: 16px; line-height:1.1; }
-.kv{ padding: 12px 14px; display:grid; grid-template-columns: 1fr; gap:6px; }
-.kv-row{ display:flex; align-items:center; justify-content: space-between; gap:8px; background: rgba(255,255,255,.04); padding:8px 10px; border-radius: 10px; }
-.kv-key{ color:var(--muted); font-size:12px; }
-.kv-val{ font-weight:600; font-size: 13px; text-align:right; }
-.card-actions{ display:flex; gap:8px; padding: 12px 14px 14px; }
-.link{ flex:1; text-align:center; border-radius:10px; background: rgba(255,255,255,.08); padding: 9px 10px; font-weight:600; }
-.link:hover{ background: rgba(255,255,255,.12); }
-.empty, .error{ padding: 40px 24px; text-align:center; color:var(--muted); }
-.skeleton{ height: 210px; border-radius: var(--card-radius); background: linear-gradient(90deg, rgba(255,255,255,.06), rgba(255,255,255,.03), rgba(255,255,255,.06)); background-size: 300% 100%; animation: shimmer 1.4s infinite; }
-@keyframes shimmer{ 0%{ background-position: 0 0; } 100%{ background-position: 100% 0; } }
-@media (max-width: 900px){ .controls{ grid-template-columns: 1fr 1fr; } }
-details.diag{ margin: 6px 24px 16px; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.08); border-radius:12px; padding:10px 12px; }
-details.diag pre{ white-space:pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; font-size:12px; color:#c9d4f6; }
+
+/* ---------- Header / hero ---------- */
+.site-header{
+  position:sticky; top:0; z-index: 10;
+  background:
+    radial-gradient(1200px 700px at 20% -10%, rgba(255,255,255,.06), transparent 50%),
+    radial-gradient(1200px 700px at 80% -20%, rgba(255,255,255,.04), transparent 50%),
+    var(--bg);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid rgba(255,255,255,.04);
+}
+.hero{
+  min-height: 72px;
+  display:flex; flex-direction:column; justify-content:center;
+  gap:8px; padding: 12px 24px;
+  background:
+    linear-gradient(to right, rgba(0,0,0,.55), rgba(0,0,0,.55)),
+    var(--hero-url) center/cover no-repeat;
+}
+.brandline{ display:flex; align-items:center; gap:14px; }
+.brandmark{ display:none; } /* optional square avatar; hide for room */
+.wordlogo{
+  height: var(--logo-height);
+  max-width: clamp(240px, 32vw, 680px);
+  object-fit: contain;
+  display: block;
+  filter: none !important;
+}
+.tag{ margin:0; color:var(--muted); text-transform:uppercase; letter-spacing:1.5px; font-size:10px; }
+@media (max-width: 640px){ .wordlogo{ height: var(--logo-height-sm); } }
+
+/* ---------- Filter bar (glass / pills) ---------- */
+.filters{
+  display:grid;
+  grid-template-columns: 1.2fr repeat(4, 150px) auto auto auto;
+  gap:8px; padding: 8px 24px 10px; align-items:center;
+}
+/* space between search and "Card (A–Z)" */
+.filters{
+  gap: 50px !important;                /* adds a few pixels between the pills */
+  grid-template-columns: 1fr minmax(200px, 280px); /* keep sort a nice width */
+}
+
+/* safety so controls don't overflow and touch */
+.control{ min-width: 0; }
+
+.control{
+  display:flex; align-items:center; gap:8px;
+  padding:10px 12px; border-radius:999px; background:var(--panel);
+  border:1px solid transparent;
+}
+.control svg{ color:var(--ink-dim); flex:0 0 auto; }
+.control input, .control select{
+  width:100%; background:transparent; border:none; outline:none; color:var(--text);
+  font:inherit; appearance:none;
+}
+.control label{ display:none; }
+.control-search input::placeholder{ color: #a9a9a9; }
+.control:focus-within{ outline:2px solid var(--ring); outline-offset:2px; }
+
+.btn{
+  background: transparent; color:var(--ink); border:1px solid rgba(255,255,255,.20);
+  border-radius:999px; padding:10px 14px; font-weight:600; cursor:pointer;
+}
+.btn:hover{ background: rgba(255,255,255,.06); }
+.btn.ghost{ background:transparent; }
+.link-quiet{ color:#cfcfcf; text-decoration:none; }
+.link-quiet:hover{ text-decoration:underline; }
+
+/* ---------- Status ---------- */
+.status{
+  margin: 0 24px 8px; padding:10px 12px; border-radius:10px;
+  border:1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.04); font-size:12px;
+}
+
+/* ---------- Main & grid ---------- */
+.container{ max-width:none; width:100%; margin:0; }
+.grid{ display:flex; flex-direction:column; gap:0; padding: 0; }
+.empty, .error{ padding: 20px 24px; color:#b9b9b9; }
+
+/* ---------- Row cards (borderless; inner highlight on hover/expanded) ---------- */
+.row{
+  margin:0; border:1px solid transparent; background:transparent; border-radius:0;
+  transition: background .18s ease, box-shadow .18s ease, transform .06s ease;
+}
+.row.clickable{ cursor:pointer; }
+.row.clickable:hover{ background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.03)); }
+.row:active{ transform: translateY(1px); }
+.row.expanded{ background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.04)); }
+
+/* optional small meta line */
+.row-meta{
+  border:0; padding: 0 2px 2px; margin-bottom:4px; justify-content:flex-start;
+  color:#b9b9b9; font-size:12px; display:flex;
+}
+
+/* ---------- Row grid: [image | name | SCORE | bar] ---------- */
+.row-inner{
+  display:grid;
+  grid-template-columns: 88px 1.2fr var(--score-col) 1fr;
+  align-items:center;
+  gap:16px;
+  padding: 14px;
+}
+
+/* Image column */
+.row-left{ display:flex; align-items:center; justify-content:center; }
+.row-left img{
+  width:64px; height:44px; object-fit:cover; border-radius:8px;
+  filter: grayscale(100%); transition: filter .18s ease, transform .12s ease;
+}
+.row.clickable:hover .row-left img, .row.expanded .row-left img{ filter:none; }
+
+/* Name column */
+.row-mid{ display:flex; align-items:center; gap:16px; }
+.row-title{ font-weight:800; letter-spacing:.5px; text-transform:uppercase; color:var(--ink); }
+
+/* SCORE column (left-aligned number so it sits closer to the name) */
+.row-score{ font-weight:900; font-size:36px; text-align:left; padding-left:6px; color:var(--ink); }
+
+/* Bar column */
+.row-right{ display:flex; align-items:center; gap:12px; justify-content:flex-end; }
+.breakdown{
+  position:relative; display:flex; align-items:stretch; width:100%;
+  height:32px; overflow:hidden; border-radius:8px;
+  background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.10);
+}
+.seg{ display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; color:#fff; white-space:nowrap; }
+.seg small{ opacity:.95; font-weight:600; margin-left:6px; font-size:11px; }
+
+/* Click-to-expand details */
+.row-details{ display:none; margin: 8px 14px 14px; }
+.row.expanded .row-details{ display:block; }
+.kv{ display:grid; grid-template-columns: 1fr 1fr; gap:6px 12px; }
+.kv-row{ display:flex; align-items:center; justify-content:space-between; gap:8px; background: rgba(255,255,255,.06); padding:8px 10px; border-radius:8px; }
+.kv-key{ color:#bdbdbd; font-size:12px; }
+.kv-val{ font-weight:600; font-size:13px; text-align:right; }
+
+/* Skeleton rows */
+.skeleton{ height:96px; border-radius:0;
+  background: linear-gradient(90deg, rgba(255,255,255,.06), rgba(255,255,255,.03), rgba(255,255,255,.06));
+  background-size:300% 100%; animation: shimmer 1.4s infinite; }
+@keyframes shimmer{ 0%{ background-position:0 0; } 100%{ background-position:100% 0; } }
+
+/* Diagnostics panel */
+details.diag{ margin: 8px 24px 18px; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08); border-radius:12px; padding:10px 12px; }
+details.diag pre{ white-space:pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; font-size:12px; color:#dcdcdc; }
+
+/* ---------- Group header (final, de-duped) ----------
+   Columns align to rows: [rank] [label] [SCORE] [bar] */
+:root{
+  /* TUNING KNOBS */
+  --edge-pad: 14px;          /* left/right padding to align with rows */
+  --rank-col: 24px;          /* width of the rank-number column (smaller = further LEFT) */
+  --label-nudge: -8px;       /* move the label LEFT (more negative = closer to number) */
+  --score-col: 180px;        /* width of the SCORE column (matches rows) */
+  --score-label-pad: 18px;   /* push the word “Score” to the RIGHT inside its column */
+}
+
+.group-divider{
+  display: grid;
+  grid-template-columns: var(--rank-col) 1.2fr var(--score-col) 1fr; /* match .row-inner */
+  align-items: center;
+  column-gap: 8px;
+  padding: 10px var(--edge-pad) 6px var(--edge-pad);
+}
+
+/* Rank NUMBER — anchor it to the LEFT of its column */
+.gd-n{
+  grid-column: 1;
+  justify-self: start;    /* << puts the number at the left edge of the rank column */
+  padding: 0;             /* no extra right padding pushing it inward */
+  font-weight: 900; font-size: 19px; color: #fff;
+}
+
+/* “CRYPTO CARD RANK” — pull LEFT to hug the number */
+.gd-title{
+  grid-column: 2;
+  margin-left: var(--label-nudge);  /* negative pulls left */
+  display: flex; align-items: center; gap: 10px;
+  font-size: 12px; letter-spacing: 1px; text-transform: uppercase; color: #9f9f9f;
+}
+.gd-title .rule{
+  flex: 1 1 auto; height: 1px; background: rgba(255,255,255,.14);
+}
+
+/* SCORE label + rule to the far right */
+.gd-ds{
+  grid-column: 3 / -1;            /* covers score column + bar column */
+  display: flex; align-items: center; gap: 10px;
+  padding-left: var(--score-label-pad);
+  font-size: 12px; letter-spacing: 1px; text-transform: uppercase; color: #9f9f9f;
+}
+.gd-ds::after{
+  content: ""; flex: 1 1 auto; height: 1px; background: rgba(255,255,255,.14);
+}
+/* === Restore row clickability (prevent header overlay) === */
+.group-divider,
+.group-divider *{
+  pointer-events: none;     /* header can't intercept clicks */
+  z-index: 0;
+}
+
+.row{
+  position: relative;
+  z-index: 1;               /* rows sit above header */
+  pointer-events: auto;     /* ensure clicks go to the row */
+}
+
+.row.clickable{ cursor: pointer; }
+.row-inner,
+.row-inner *{
+  pointer-events: auto;     /* keep inner content interactive if needed */
+}
+
+/* make hovered/expanded rows sit even higher just in case */
+.row.clickable:hover,
+.row.expanded{
+  z-index: 2;
+}
+/* All breakdown segment labels */
+.breakdown .seg{
+  color:#e5e7eb;          /* light gray (change as you like) */
+}
+.breakdown .seg small{
+  color:currentColor;     /* numbers follow the label color */
+  opacity:1;              /* make them fully opaque */
+}
+/* Hide reload/tests buttons but keep DOM nodes so old JS doesn't break */
+#reload,
+#runTests{
+  display: none !important;
+}
+
+/* Hide Issuer / Network / Country controls (safe: removes the whole pill) */
+.filters .control:has(#issuer),
+.filters .control:has(#network),
+.filters .control:has(#country){
+  display: none !important;
+}
+/* 1) Hide the "Sheet ↗" link (and keep Reload/Tests hidden just in case) */
+#sheetLink,
+#reload,
+#runTests{
+  display: none !important;
+}
+
+/* 2) Only two things remain in the bar:
+      - Search (fills the row)
+      - Sort ("Card A–Z") on the right, nice width */
+.filters{
+  grid-template-columns: 1fr minmax(180px, 280px); /* search | sort */
+  align-items: center;
+}
+
+/* Make the Sort chip align right and fill its assigned column */
+.filters .control:has(#sort){
+  justify-self: end;
+  width: 100%;
+}
+
+/* Let the select stretch inside its pill */
+.filters .control:has(#sort) select{
+  width: 100%;
+}
+
+/* Mobile: stack them full width */
+@media (max-width: 720px){
+  .filters{
+    grid-template-columns: 1fr;   /* one column */
+    gap: 8px;
+  }
+  .filters .control:has(#sort){
+    justify-self: stretch;
+  }
+}
+
+/* --- Footer --- */
+.site-footer{
+  border-top: 1px solid rgba(255,255,255,.06);
+  background: var(--bg);
+}
+.footer-inner{
+  display:flex; align-items:center; justify-content:space-between;
+  gap:12px; padding: 18px 24px;
+  color:#bdbdbd; font-size:12px;
+}
+.foot-brand{ font-weight:800; letter-spacing:2px; color:#fff; }
+.foot-dot{ opacity:.5; margin: 0 8px; }
+.foot-link{
+  color:#dcdcdc; text-decoration:none; border:1px solid rgba(255,255,255,.18);
+  padding:6px 10px; border-radius:999px;
+}
+.foot-link:hover{ background: rgba(255,255,255,.06); }
+@media (max-width:640px){
+  .footer-inner{ flex-direction:column; align-items:flex-start; }
+}
