@@ -16,7 +16,7 @@ import {
 
 export function setStatus(msg, kind='ok'){
   const el = document.getElementById('status');
-  if (el){ el.textContent = msg; el.className = `status ${kind}`; }
+  if (el) { el.textContent = msg; el.className = `status ${kind}`; }
 }
 export function setDiag(txt){
   const el = document.getElementById('diag');
@@ -60,87 +60,113 @@ function toggleRow(rowEl, expand){
   rowEl.setAttribute('aria-expanded', String(willExpand));
 }
 
+/* formatting helpers for the row-score cell */
+function fmtPct(n){
+  if (!Number.isFinite(n)) return '—';
+  const d = Math.abs(n) < 1 ? 2 : 1;
+  return `${Number(n).toFixed(d).replace(/\.0$/, '')}%`;
+}
+function fmtMoneyPerYear(n){
+  if (!Number.isFinite(n)) return '—';
+  const rounded = Math.round(n);
+  return `$${rounded.toLocaleString('en-US')}/yr`;
+}
+
 export function render(){
   const grid = document.getElementById('grid');
   const empty = document.getElementById('empty');
-  const { search } = state.filters || {};
-  const sortChoice = (state.filters?.sort || '').toLowerCase();
 
   let rows = [...state.rows];
 
-  // Text search (kept)
+  // Filters (search + legacy dropdowns, if any were set)
+  const { search, issuer, network, country } = (state.filters || {});
   const q = (search||'').trim().toLowerCase();
   if (q){ rows = rows.filter(r => Object.values(r).some(v => (v||'').toString().toLowerCase().includes(q))); }
+  if (issuer){ rows = rows.filter(r => (r.issuer||'') === issuer); }
+  if (network){ rows = rows.filter(r => (r.network||'') === network); }
+  if (country){ rows = rows.filter(r => (r.country||'') === country); }
 
-  // === dataset-wide anchors (for stable scoring) ===
+  // === Score anchors and per-row scores ===
   const anchors = prepareAnchors(state.rows, state.headers);
 
-  // Score each row once
   const withScore = rows.map(r => {
     const s = scoreRow(r, state.headers, anchors);
+    // scoreRow returns: { base, fee, feeScore, rewards, rewardScore, total, display }
     return { row: r, ...s };
   });
 
-  // ---- choose metric for sort + group
-  let metricKey = 'overall';
-  if (sortChoice.startsWith('reward')) metricKey = 'rewards';
-  else if (sortChoice.startsWith('annual')) metricKey = 'annual';
+  // === Sort based on the selected pill ===
+  const mode = (state.filters && state.filters.sort) || 'Overall (sum of scores)';
+  const isOverall = mode.toLowerCase().startsWith('overall');
+  const isRewards = mode === 'Rewards';
+  const isAnnual  = mode === 'Annual Fee';
 
-  const getMetricValue = (it) => {
-    switch (metricKey){
-      case 'rewards': return it.rewardScore;       // 0..5
-      case 'annual':  return it.feeScore;          // 0..5 (higher=better)
-      default:        return it.total;             // overall
-    }
-  };
-  const metricLabel = (
-    metricKey === 'rewards' ? 'Rewards' :
-    metricKey === 'annual'  ? 'Annual Fee' :
-    'Score'
-  );
-
-  // Sort by chosen metric (desc), tie-breaker by Card name
   withScore.sort((a,b) => {
-    const da = getMetricValue(a), db = getMetricValue(b);
-    const dt = db - da;
-    return dt !== 0 ? dt : (a.row.card||'').localeCompare(b.row.card||'');
+    if (isRewards){
+      const d = (b.rewards || 0) - (a.rewards || 0);
+      return d !== 0 ? d : (a.row.card||'').localeCompare(b.row.card||'');
+    }
+    if (isAnnual){
+      const d = (a.fee || 0) - (b.fee || 0); // cheaper first
+      return d !== 0 ? d : (a.row.card||'').localeCompare(b.row.card||'');
+    }
+    // Overall
+    const d = (b.total || 0) - (a.total || 0);
+    return d !== 0 ? d : (a.row.card||'').localeCompare(b.row.card||'');
   });
+
+  // === Grouping for the rank headers ===
+  // Overall: group by displayed overall (1 decimal) so ties cluster.
+  // Rewards: group by rewards rounded to 0.1
+  // Annual:  group by fee rounded to whole dollars
+  const groupKey = it => {
+    if (isRewards) return Math.round((it.rewards || 0) * 10) / 10;
+    if (isAnnual)  return Math.round(it.fee || 0);
+    return it.display; // overall (1-dec)
+  };
 
   grid.innerHTML = '';
   if (withScore.length === 0){
-    empty.style.display = 'block';
+    if (empty) empty.style.display = 'block';
+    const metaEl0 = document.getElementById('meta'); if (metaEl0) metaEl0.textContent = `0 cards shown`;
     return;
   } else {
-    empty.style.display = 'none';
+    if (empty) empty.style.display = 'none';
   }
 
-  // Group by the chosen metric (1-decimal buckets)
+  // build groups
   const groups = new Map();
   for (const it of withScore){
-    const v = Number(getMetricValue(it).toFixed(1));
-    if (!groups.has(v)) groups.set(v, []);
-    groups.get(v).push(it);
+    const k = groupKey(it);
+    if (!groups.has(k)) groups.set(k, []);
+    groups.get(k).push(it);
   }
-  const bucketValues = Array.from(groups.keys()).sort((a,b) => b - a);
+  const keys = Array.from(groups.keys()).sort((a,b) => {
+    if (isRewards) return b - a;     // high % first
+    if (isAnnual)  return a - b;     // low fee first
+    return b - a;                     // overall high first
+  });
 
-  // Render each group header + rows
-  bucketValues.forEach((bucket, groupIdx) => {
+  const label = isOverall ? 'Score' : isRewards ? 'Rewards' : 'Annual Fee';
+
+  // Render
+  keys.forEach((k, groupIdx) => {
     const divider = document.createElement('div');
     divider.className = 'group-divider';
     divider.innerHTML = `
       <div class="gd-n">${groupIdx + 1}</div>
       <div class="gd-title">Crypto Card Rank <span class="rule"></span></div>
-      <div class="gd-ds">${metricLabel}</div>
+      <div class="gd-ds">${label}</div>
       <div></div>
     `;
     divider.style.pointerEvents = 'none';
     grid.appendChild(divider);
 
-    groups.get(bucket).forEach((it, idx) => {
-      const { row: r, display } = it;
+    groups.get(k).forEach((it, idx) => {
+      const { row: r } = it;
       const imgUrl = getImage(r);
 
-      // Segments (Rewards + Annual Fee + auto)
+      // segments: keep Rewards + Annual Fee (scores 0..5) + auto ones
       const segs = buildSegments(r, state.headers, anchors);
       const segTotal = segs.reduce((s, x) => s + (Number.isFinite(x.value) ? x.value : 0), 0) || 1;
 
@@ -167,13 +193,20 @@ export function render(){
       mid.innerHTML = `<div class="row-title">${formatValue(r.card)}</div>`;
       inner.appendChild(mid);
 
-      // Col 3: number shown = OVERALL display (unchanged)
-      const scoreEl = document.createElement('div');
-      scoreEl.className = 'row-score';
-      scoreEl.textContent = display.toFixed(1).replace(/\.0$/, '');
-      inner.appendChild(scoreEl);
+      // Col 3: score / metric value display
+      const scoreCell = document.createElement('div');
+      scoreCell.className = 'row-score';
+      if (isRewards){
+        scoreCell.textContent = fmtPct(it.rewards || 0);          // e.g., 4.4%
+      } else if (isAnnual){
+        scoreCell.textContent = fmtMoneyPerYear(it.fee || 0);     // e.g., $95/yr
+      } else {
+        scoreCell.textContent = (it.display ?? it.total ?? 0)
+          .toFixed(1).replace(/\.0$/, '');                        // overall score
+      }
+      inner.appendChild(scoreCell);
 
-      // Col 4: breakdown bar
+      // Col 4: breakdown bar (unchanged)
       const right = document.createElement('div');
       right.className = 'row-right';
       const bar = document.createElement('div');
@@ -185,6 +218,7 @@ export function render(){
           const pct = Math.max(2, Math.round((val / segTotal) * 100));
           const seg = document.createElement('div');
           seg.className = 'seg';
+          seg.dataset.key = s.key;           // allows CSS targeting if desired
           seg.style.width = `${pct}%`;
           seg.style.background = segColor(i);
           seg.innerHTML = `${s.label}<small>${val.toFixed(1).replace(/\.0$/, '')}</small>`;
@@ -213,7 +247,7 @@ export function render(){
         state.headers.forEach(h => {
           if (EXCLUDE_DETAILS.has(h)) return;
           const v = r._raw[h];
-          if (v === undefined || v === null || String(v).trim()==='') return;
+          if (v === undefined || isBlankish(v)) return;
           items.push(
             `<div class="kv-row"><div class="kv-key">${h}</div><div class="kv-val">${
               isUrlLike(v) ? `<a href="${v}" target="_blank" rel="noopener">${v}</a>` : formatValue(v)
@@ -223,14 +257,14 @@ export function render(){
 
         if (items.length){
           details.innerHTML = `<div class="kv">${items.join('')}</div>`;
-          const detailsId = `row-details-${bucket}-${idx}`;
+          const detailsId = `row-details-${groupIdx}-${idx}`;
           details.id = detailsId;
           rowEl.setAttribute('aria-controls', detailsId);
           rowEl.appendChild(details);
         }
       }
 
-      // Expand/collapse handlers
+      // Click/keyboard handlers
       const onRowClick = (e) => {
         if (e.defaultPrevented) return;
         if (isInteractive(e.target, rowEl)) return;
@@ -252,31 +286,27 @@ export function render(){
     });
   });
 
-  // Footer meta (optional)
+  // meta text stays generic
   const metaEl = document.getElementById('meta');
   if (metaEl) metaEl.textContent =
-    `${withScore.length} card${withScore.length!==1?'s':''} shown • Rank by: ${metricLabel}`;
+    `${withScore.length} card${withScore.length!==1?'s':''} shown • Sort: ${mode}`;
 }
 
-// src/ui.js
 export function buildControlsOptions(){
-  const sortEl = document.getElementById('sort');
-  sortEl.innerHTML = '';
+  const issuerEl = document.getElementById('issuer');
+  const networkEl = document.getElementById('network');
+  const countryEl = document.getElementById('country');
 
-  const options = [
-    'Overall (sum of scores)',  // sorts by overall total
-    'Rewards',                  // sorts by rewardScore
-    'Annual Fee'                // sorts by feeScore (higher=better)
-  ];
-  options.forEach(o => {
-    const opt = document.createElement('option');
-    opt.value = o;
-    opt.textContent = o;
-    sortEl.appendChild(opt);
+  setOptions(issuerEl, uniqueSorted(state.rows.map(r=>r.issuer)), 'All issuers');
+  setOptions(networkEl, uniqueSorted(state.rows.map(r=>r.network)), 'All networks');
+  setOptions(countryEl, uniqueSorted(state.rows.map(r=>r.country)), 'All countries');
+
+  const sortEl = document.getElementById('sort'); sortEl.innerHTML = '';
+  ['Overall (sum of scores)','Rewards','Annual Fee'].forEach(o=>{
+    const opt = document.createElement('option'); opt.value=o; opt.textContent=o; sortEl.appendChild(opt);
   });
 
   if (!state.filters) state.filters = {};
-  if (!state.filters.sort) state.filters.sort = options[0];
+  if (!state.filters.sort) state.filters.sort = 'Overall (sum of scores)';
   sortEl.value = state.filters.sort;
 }
-

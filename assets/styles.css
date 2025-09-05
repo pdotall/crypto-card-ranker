@@ -328,3 +328,19 @@ details.diag pre{ white-space:pre-wrap; font-family: ui-monospace, SFMono-Regula
 @media (max-width:640px){
   .footer-inner{ flex-direction:column; align-items:flex-start; }
 }
+/* Bar text colors (dark on light backgrounds) */
+:root{
+  --seg-text: #0f0f10;          /* label color */
+  --seg-text-sub: rgba(0,0,0,.85); /* number color */
+}
+
+.breakdown .seg{
+  color: var(--seg-text) !important;
+  font-weight: 800;
+  text-shadow: 0 1px 0 rgba(255,255,255,.25); /* subtle lift */
+}
+.breakdown .seg small{
+  color: var(--seg-text-sub) !important;
+  opacity: 1 !important;        /* ensure not washed out */
+  font-weight: 700;
+}
