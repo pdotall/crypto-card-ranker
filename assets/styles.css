@@ -664,4 +664,81 @@ main.container{
   width:100%;
   text-align:center;      /* center "CRYPTO CARD RANKER" */
 }
+/* ===== Footer: pull all the way LEFT and show the button ===== */
 
+/* kill the sidebar offset that was pushing the footer right */
+.site-footer .footer-inner.container{
+  margin-left: 0 !important;
+  padding-left: 24px;              /* or var(--page-gutter) */
+}
+
+/* left-align contents */
+.footer-inner{
+  display: flex;
+  align-items: center;
+  justify-content: flex-start !important;
+  gap: 12px;
+}
+
+/* push the button to the right, if you want it on the far edge */
+.footer-inner .spacer{ flex: 1 1 auto; }
+
+/* make sure the button actually displays */
+.back-to-top, #backTop{
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.18);
+  color: #dcdcdc;
+  text-decoration: none;
+  background: transparent;
+}
+.back-to-top:hover, #backTop:hover{
+  background: rgba(255,255,255,.06);
+}
+/* === Back to the top: fixed bottom-right === */
+#backTop,
+.back-to-top{
+  position: fixed;
+  right: 22px;
+  bottom: 18px;
+  z-index: 1000;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.18);
+  background: rgba(0,0,0,.35);
+  backdrop-filter: blur(6px);
+  color: #dcdcdc;
+  text-decoration: none;
+}
+#backTop:hover,
+.back-to-top:hover{
+  background: rgba(255,255,255,.08);
+}
+
+/* === Footer: centered, with knobs === */
+:root{
+  --footer-max: 1100px;   /* width of the footer content box */
+  --footer-nudge-x: 120px;  /* fine-tune: negative moves left, positive moves right */
+}
+
+.site-footer .footer-inner.container{
+  margin-left: 0 !important;   /* don’t inherit sidebar offset */
+  padding: 16px 24px;
+}
+
+.footer-inner{
+  display: flex;
+  align-items: center;
+  justify-content: center;     /* center the content */
+  gap: 12px;
+  max-width: var(--footer-max);
+  margin: 0 auto;               /* center the box itself */
+  text-align: center;
+  transform: translateX(var(--footer-nudge-x)); /* manual nudge */
+}
