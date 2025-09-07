@@ -742,3 +742,18 @@ main.container{
   text-align: center;
   transform: translateX(var(--footer-nudge-x)); /* manual nudge */
 }
+/* Only move the left cluster (Built by …) */
+:root{
+  --foot-left-nudge: 296px;   /* tweak this: 0–48px */
+}
+
+.site-footer .footer-inner > :first-child{
+  margin-left: var(--foot-left-nudge);
+}
+
+/* Don’t nudge on small screens */
+@media (max-width: 700px){
+  .site-footer .footer-inner > :first-child{
+    margin-left: 0;
+  }
+}
