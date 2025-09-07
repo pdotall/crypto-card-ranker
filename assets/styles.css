@@ -344,3 +344,324 @@ details.diag pre{ white-space:pre-wrap; font-family: ui-monospace, SFMono-Regula
   opacity: 1 !important;        /* ensure not washed out */
   font-weight: 700;
 }
+/* === Extra-compact sidebar & pills === */
+:root{
+  /* make the sidebar even thinner */
+  --sidebar-w: 168px;          /* try 160–180px if you want to tweak */
+
+  /* pill sizing */
+  --pill-font: 14px;           /* requested size */
+  --pill-pad-y: 6px;
+  --pill-pad-x: 10px;
+  --pill-icon: 14px;
+}
+
+/* sidebar container */
+.sidebar{ padding:10px 10px; gap:10px; }
+
+/* brand in sidebar */
+.side-brand .wordlogo{ height:22px; }
+.side-brand .tag{ font-size:9px; letter-spacing:1px; }
+
+/* pills inside sidebar */
+.sidebar .control{
+  padding: var(--pill-pad-y) var(--pill-pad-x);
+  border-radius: 999px;
+}
+.sidebar .control input,
+.sidebar .control select{
+  font-size: var(--pill-font);
+}
+.sidebar .control svg{
+  width: var(--pill-icon);
+  height: var(--pill-icon);
+}
+
+/* main area keeps in step with the new width */
+.with-sidebar{ margin-left: var(--sidebar-w); }
+/* === Table layout for ranking === */
+.table-wrap{
+  width:100%;
+  overflow:auto;                 /* horizontal scroll if many columns */
+  border-radius:12px;
+}
+
+/* dark, sticky header table */
+.rank-table{
+  width:100%;
+  min-width: 960px;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.rank-table thead th{
+  position: sticky; top: 0;
+  z-index: 1;
+  background: rgba(255,255,255,.04);
+  backdrop-filter: blur(4px);
+  text-align: left;
+  padding: 10px 12px;
+  font-size: 12px;
+  letter-spacing: .6px;
+  text-transform: uppercase;
+  color: #9f9f9f;
+  border-bottom: 1px solid rgba(255,255,255,.10);
+}
+
+.rank-table tbody td{
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(255,255,255,.08);
+  vertical-align: middle;
+  font-size: 13px;
+  color: var(--text);
+}
+.rank-table tbody tr:hover{ background: rgba(255,255,255,.04); }
+
+.rank-table td.num, .rank-table th.num{ text-align: right; font-variant-numeric: tabular-nums; }
+
+.rank-table td.cimg, .rank-table th.cimg{ width: 48px; }
+.rank-table td.cimg img{
+  width: 40px; height: 28px; object-fit: cover; border-radius: 6px;
+  filter: grayscale(100%);
+}
+/* Restore table logo color on row hover */
+.rank-table tbody tr:hover td.cimg img{
+  filter: none;
+}
+
+/* If some rows don’t use the cimg class, this fallback also works: */
+.rank-table tbody tr:hover td:first-child img{
+  filter: none;
+}
+
+.rank-table td.card{ font-weight: 800; letter-spacing: .3px; text-transform: uppercase; color: var(--ink); }
+
+/* --- sidebar sizing --- */
+:root{
+  --sidebar-w: 250px;   /* set to your actual sidebar width */
+  --sidebar-gap: 32px;  /* small spacing between sidebar and content */
+}
+
+/* sidebar width (already fixed left) */
+.site-header{ width: var(--sidebar-w); }
+
+/* push the main content ONCE */
+main.container{
+  margin-left: calc(var(--sidebar-w) + var(--sidebar-gap));
+}
+
+/* IMPORTANT: remove any extra offsets on inner wrappers */
+.table-wrap,
+#grid,
+.grid{
+  margin-left: 0 !important;
+}
+
+/* keep horizontal scroll if the table is wide */
+.table-wrap{ overflow-x: auto; }
+
+/* footer aligns with content */
+.site-footer .footer-inner.container{
+  margin-left: calc(var(--sidebar-w) + var(--sidebar-gap));
+}
+
+/* responsive collapse */
+@media (max-width: 900px){
+  .site-header{ position: static; width: auto; }
+  main.container,
+  .site-footer .footer-inner.container{
+    margin-left: 0;
+  }
+}
+/* --- chips live BETWEEN search and sort --- */
+/* Hide any legacy inline chip list (previous version rendered chips inside the search pill) */
+.control-search #chipList{ display:none !important; }
+
+/* Tighter spacing between SEARCH and CHIPS */
+.sidebar{
+  gap: 6px !important;                 /* was ~10px; reduces vertical gap */
+}
+
+/* Chip row right under the search pill */
+.chips-row{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;                             /* space between chips */
+  margin-top: -10px;                      /* bring closer to search */
+  margin-bottom: 6px;                   /* small gap before the next control */
+  padding-left: 4px;                    /* slight align with search text */
+}
+
+/* Keep a little space before the sorter pill */
+.sidebar .control-sort{
+  margin-top: 4px;                      /* optional: nudge if you want more/less */
+}
+
+/* Reset the oversized grid gap that is pushing chips down */
+.filters{
+  /* replace any old "gap: 50px !important" */
+  column-gap: 10px !important;   /* space between search & sort (columns) */
+  row-gap: 4px !important;       /* tight vertical space between rows */
+  gap: 4px !important;           /* safety for browsers that use shorthand */
+}
+
+/* If your layout uses the left sidebar container too */
+.sidebar{
+  row-gap: 4px !important;
+}
+
+/* Chips row sits immediately under the search pill */
+.chips-row{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;                      /* spacing between chips */
+  margin-top: 2px !important;   /* pull chips closer if needed */
+  margin-bottom: 6px;            /* tiny space before the sorter pill */
+  padding-left: 6px;             /* aligns chip text with search text a bit */
+}
+
+/* Extra specificity: only when chips follow the search control */
+.filters .control-search + .chips-row,
+.sidebar .control-search + .chips-row{
+  margin-top: 2px !important;
+}
+/* === Classic chips (compact, like before) === */
+:root{
+  --chip-bg: rgba(255,255,255,.07);
+  --chip-border: rgba(255,255,255,.16);
+  --chip-text: #ececec;
+  --chip-bg-hover: rgba(255,255,255,.10);
+  --chip-border-hover: rgba(255,255,255,.22);
+}
+
+.chips-row{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  /* snug under the search pill */
+  margin-top:-4px;
+  margin-bottom:8px;
+  padding-left:12px;         /* aligns with search text inset */
+}
+
+.chip{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding:5px 10px;
+  border-radius:999px;
+  font-size:12px;
+  font-weight:600;
+  line-height:1;
+  color:var(--chip-text);
+  background:var(--chip-bg);
+  border:1px solid var(--chip-border);
+}
+
+.chip:hover{ 
+  background:var(--chip-bg-hover);
+  border-color:var(--chip-border-hover);
+}
+
+.chip__text{ white-space:nowrap; }
+
+/* Clean circular × for chips — no UA button skin */
+.chip__x,
+.chip__x[type="button"],
+.chip__x[type="reset"],
+.chip__x[type="submit"]{
+  all: unset;                       /* wipe native styles (background, border, etc.) */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  font-size: 14px;
+  line-height: 1;
+  color: #d0d0d0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.chip__x:hover { background: rgba(255,255,255,.12); color:#fff; }
+.chip__x:focus { outline: none; }
+.chip__x:focus-visible { outline: 2px solid rgba(255,255,255,.35); outline-offset: 2px; }
+
+/* Firefox inner focus ring fix */
+.chip__x::-moz-focus-inner { border: 0; padding: 0; }
+
+/* 4px space between the search box and the chips row */
+.filters .control-search + .chips-row,
+.sidebar .control-search + .chips-row {
+  margin-top: 4px !important;
+}
+
+/* === Center brand in the sidebar === */
+.site-header .hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;   /* center horizontally */
+  text-align: center;    /* center the subtitle text */
+  margin-bottom: 14px;   /* creates space below the brand block */
+}
+
+.site-header .brandline {
+  width: 100%;
+  justify-content: center;  /* center the logo row */
+}
+
+.site-header .wordlogo {    /* optional: slight visual balance */
+  margin: 6px auto 4px;
+}
+
+.site-header .tag {
+  text-align: center;
+}
+
+/* === Ensure gap between brand and search === */
+/* If the filters live INSIDE the header */
+.site-header .filters { margin-top: 10px; }
+
+/* If the filters come right AFTER the header (sibling) */
+.site-header + .filters { margin-top: 10px; }
+
+/* If your layout wraps them in a sidebar container */
+.sidebar .filters { margin-top: 10px; }
+
+/* Keep chips nicely tucked under the search (you already asked for 5px) */
+.filters .control-search + .chips-row,
+.sidebar .control-search + .chips-row {
+  margin-top: 5px !important;
+}
+
+/* ===== Center brand (logo + subtitle) in the sidebar ===== */
+.sidebar .hero,
+.site-header .hero,
+.sidebar .side-brand,
+.site-header .side-brand{
+  display:flex;
+  flex-direction:column;
+  align-items:center;     /* center horizontally */
+  text-align:center;
+  margin-bottom:12px;     /* space before the search */
+}
+
+.sidebar .brandline,
+.site-header .brandline{
+  width:100%;
+  justify-content:center; /* center the logo row */
+}
+
+.sidebar .wordlogo,
+.site-header .wordlogo{
+  margin-inline:auto;     /* ensure the image itself is centered */
+  display:block;
+}
+
+.sidebar .tag,
+.site-header .tag{
+  width:100%;
+  text-align:center;      /* center "CRYPTO CARD RANKER" */
+}
+

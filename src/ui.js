@@ -5,24 +5,20 @@ import {
   normalizeImageUrl, PLACEHOLDER_IMG
 } from './utils.js';
 import { state } from './store.js';
-import {
-  IMAGE_FIELDS,
-  SHOW_DETAILS
-} from './config.js';
+import { IMAGE_FIELDS } from './config.js';
+import { prepareAnchors, scoreRow } from './score.js';
 
-import {
-  prepareAnchors, scoreRow, buildSegments, segColor
-} from './score.js';
-
-export function setStatus(msg, kind='ok'){
+/* ----------------- small helpers ----------------- */
+export function setStatus(msg, kind = 'ok'){
   const el = document.getElementById('status');
-  if (el) { el.textContent = msg; el.className = `status ${kind}`; }
+  if (el){ el.textContent = msg; el.className = `status ${kind}`; }
 }
 export function setDiag(txt){
   const el = document.getElementById('diag');
   if (el) el.textContent = txt || '';
 }
 export function setOptions(el, options, firstLabel){
+  if (!el) return;
   el.innerHTML = '';
   const first = document.createElement('option');
   first.value = ''; first.textContent = firstLabel; el.appendChild(first);
@@ -31,15 +27,19 @@ export function setOptions(el, options, firstLabel){
     opt.value = o; opt.textContent = o; el.appendChild(opt);
   }
 }
-export function renderSkeleton(n=6){
-  const grid = document.getElementById('grid'); grid.innerHTML='';
+export function renderSkeleton(n = 6){
+  const grid = document.getElementById('grid');
+  if (!grid) return;
+  grid.innerHTML = '';
   for (let i=0;i<n;i++){
-    const s = document.createElement('div'); s.className='skeleton'; grid.appendChild(s);
+    const s = document.createElement('div');
+    s.className = 'skeleton';
+    grid.appendChild(s);
   }
 }
 
-/* ===== helpers for image field ===== */
-function headerFor(aliases){ return findHeader(state.headers, aliases) || null; }
+/* ---- sheet header helpers ---- */
+function headerFor(aliases){ return findHeader(state.headers || [], aliases) || null; }
 function valueAt(row, header){ return header ? row._raw[header] : undefined; }
 
 function getImage(row){
@@ -49,264 +49,283 @@ function getImage(row){
   return isUrlLike(norm) ? norm : null;
 }
 
-// click/keyboard toggle
-function isInteractive(target, rowEl){
-  const el = target.closest('a, button, select, input, textarea, [role="button"]');
-  return !!(el && el !== rowEl);
-}
-function toggleRow(rowEl, expand){
-  const willExpand = expand != null ? expand : !rowEl.classList.contains('expanded');
-  rowEl.classList.toggle('expanded', willExpand);
-  rowEl.setAttribute('aria-expanded', String(willExpand));
+function formatCurrency(n){
+  if (!Number.isFinite(n)) return '';
+  const fixed = Math.round(n) === n ? n.toString() : n.toFixed(2);
+  return '$' + fixed.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 }
 
-/* formatting helpers for the row-score cell */
-function fmtPct(n){
-  if (!Number.isFinite(n)) return '—';
-  const d = Math.abs(n) < 1 ? 2 : 1;
-  return `${Number(n).toFixed(d).replace(/\.0$/, '')}%`;
-}
-function fmtMoneyPerYear(n){
-  if (!Number.isFinite(n)) return '—';
-  const rounded = Math.round(n);
-  return `$${rounded.toLocaleString('en-US')}/yr`;
-}
-
+/* =========================================================
+   TABLE RENDER
+   ========================================================= */
 export function render(){
-  const grid = document.getElementById('grid');
+  const grid  = document.getElementById('grid');
   const empty = document.getElementById('empty');
+  if (!grid) return;
 
-  let rows = [...state.rows];
+  try{
+    let rows = Array.isArray(state.rows) ? [...state.rows] : [];
+    const headers = Array.isArray(state.headers) ? state.headers : [];
 
-  // Filters (search + legacy dropdowns, if any were set)
-  const { search, issuer, network, country } = (state.filters || {});
-  const q = (search||'').trim().toLowerCase();
-  if (q){ rows = rows.filter(r => Object.values(r).some(v => (v||'').toString().toLowerCase().includes(q))); }
-  if (issuer){ rows = rows.filter(r => (r.issuer||'') === issuer); }
-  if (network){ rows = rows.filter(r => (r.network||'') === network); }
-  if (country){ rows = rows.filter(r => (r.country||'') === country); }
-
-  // === Score anchors and per-row scores ===
-  const anchors = prepareAnchors(state.rows, state.headers);
-
-  const withScore = rows.map(r => {
-    const s = scoreRow(r, state.headers, anchors);
-    // scoreRow returns: { base, fee, feeScore, rewards, rewardScore, total, display }
-    return { row: r, ...s };
-  });
-
-  // === Sort based on the selected pill ===
-  const mode = (state.filters && state.filters.sort) || 'Overall (sum of scores)';
-  const isOverall = mode.toLowerCase().startsWith('overall');
-  const isRewards = mode === 'Rewards';
-  const isAnnual  = mode === 'Annual Fee';
-
-  withScore.sort((a,b) => {
-    if (isRewards){
-      const d = (b.rewards || 0) - (a.rewards || 0);
-      return d !== 0 ? d : (a.row.card||'').localeCompare(b.row.card||'');
+    // ---- filters (search + chips + legacy) ----
+    const q = (state.filters?.search || '').trim().toLowerCase();
+    if (q){
+      rows = rows.filter(r =>
+        Object.values(r).some(v => (v||'').toString().toLowerCase().includes(q))
+      );
     }
-    if (isAnnual){
-      const d = (a.fee || 0) - (b.fee || 0); // cheaper first
-      return d !== 0 ? d : (a.row.card||'').localeCompare(b.row.card||'');
-    }
-    // Overall
-    const d = (b.total || 0) - (a.total || 0);
-    return d !== 0 ? d : (a.row.card||'').localeCompare(b.row.card||'');
-  });
 
-  // === Grouping for the rank headers ===
-  // Overall: group by displayed overall (1 decimal) so ties cluster.
-  // Rewards: group by rewards rounded to 0.1
-  // Annual:  group by fee rounded to whole dollars
-  const groupKey = it => {
-    if (isRewards) return Math.round((it.rewards || 0) * 10) / 10;
-    if (isAnnual)  return Math.round(it.fee || 0);
-    return it.display; // overall (1-dec)
-  };
-
-  grid.innerHTML = '';
-  if (withScore.length === 0){
-    if (empty) empty.style.display = 'block';
-    const metaEl0 = document.getElementById('meta'); if (metaEl0) metaEl0.textContent = `0 cards shown`;
-    return;
-  } else {
-    if (empty) empty.style.display = 'none';
-  }
-
-  // build groups
-  const groups = new Map();
-  for (const it of withScore){
-    const k = groupKey(it);
-    if (!groups.has(k)) groups.set(k, []);
-    groups.get(k).push(it);
-  }
-  const keys = Array.from(groups.keys()).sort((a,b) => {
-    if (isRewards) return b - a;     // high % first
-    if (isAnnual)  return a - b;     // low fee first
-    return b - a;                     // overall high first
-  });
-
-  const label = isOverall ? 'Score' : isRewards ? 'Rewards' : 'Annual Fee';
-
-  // Render
-  keys.forEach((k, groupIdx) => {
-    const divider = document.createElement('div');
-    divider.className = 'group-divider';
-    divider.innerHTML = `
-      <div class="gd-n">${groupIdx + 1}</div>
-      <div class="gd-title">Crypto Card Rank <span class="rule"></span></div>
-      <div class="gd-ds">${label}</div>
-      <div></div>
-    `;
-    divider.style.pointerEvents = 'none';
-    grid.appendChild(divider);
-
-    groups.get(k).forEach((it, idx) => {
-      const { row: r } = it;
-      const imgUrl = getImage(r);
-
-      // segments: keep Rewards + Annual Fee (scores 0..5) + auto ones
-      const segs = buildSegments(r, state.headers, anchors);
-      const segTotal = segs.reduce((s, x) => s + (Number.isFinite(x.value) ? x.value : 0), 0) || 1;
-
-      const rowEl = document.createElement('section');
-      rowEl.className = 'row clickable';
-      rowEl.setAttribute('tabindex', '0');
-      rowEl.setAttribute('role', 'button');
-      rowEl.setAttribute('aria-expanded', 'false');
-
-      const inner = document.createElement('div');
-      inner.className = 'row-inner';
-
-      // Col 1: image
-      const left = document.createElement('div');
-      left.className = 'row-left';
-      const src = imgUrl || PLACEHOLDER_IMG;
-      left.innerHTML = `<img src="${src}" alt="${formatValue(r.card)} thumbnail"
-        onerror="this.onerror=null;this.src='${PLACEHOLDER_IMG}';">`;
-      inner.appendChild(left);
-
-      // Col 2: name
-      const mid = document.createElement('div');
-      mid.className = 'row-mid';
-      mid.innerHTML = `<div class="row-title">${formatValue(r.card)}</div>`;
-      inner.appendChild(mid);
-
-      // Col 3: score / metric value display
-      const scoreCell = document.createElement('div');
-      scoreCell.className = 'row-score';
-      if (isRewards){
-        scoreCell.textContent = fmtPct(it.rewards || 0);          // e.g., 4.4%
-      } else if (isAnnual){
-        scoreCell.textContent = fmtMoneyPerYear(it.fee || 0);     // e.g., $95/yr
-      } else {
-        scoreCell.textContent = (it.display ?? it.total ?? 0)
-          .toFixed(1).replace(/\.0$/, '');                        // overall score
-      }
-      inner.appendChild(scoreCell);
-
-      // Col 4: breakdown bar (unchanged)
-      const right = document.createElement('div');
-      right.className = 'row-right';
-      const bar = document.createElement('div');
-      bar.className = 'breakdown';
-
-      if (segs.length){
-        segs.forEach((s, i) => {
-          const val = Number(s.value) || 0;
-          const pct = Math.max(2, Math.round((val / segTotal) * 100));
-          const seg = document.createElement('div');
-          seg.className = 'seg';
-          seg.dataset.key = s.key;           // allows CSS targeting if desired
-          seg.style.width = `${pct}%`;
-          seg.style.background = segColor(i);
-          seg.innerHTML = `${s.label}<small>${val.toFixed(1).replace(/\.0$/, '')}</small>`;
-          bar.appendChild(seg);
-        });
-      } else {
-        const seg = document.createElement('div');
-        seg.className = 'seg';
-        seg.style.width = '100%';
-        seg.style.background = 'rgba(255,255,255,.10)';
-        seg.textContent = 'No breakdown';
-        bar.appendChild(seg);
-      }
-
-      right.appendChild(bar);
-      inner.appendChild(right);
-      rowEl.appendChild(inner);
-
-      // Details
-      if (SHOW_DETAILS){
-        const details = document.createElement('div');
-        details.className = 'row-details';
-        const items = [];
-
-        const EXCLUDE_DETAILS = new Set(['Card','Card Name','Name','Product','Card_name']);
-        state.headers.forEach(h => {
-          if (EXCLUDE_DETAILS.has(h)) return;
-          const v = r._raw[h];
-          if (v === undefined || isBlankish(v)) return;
-          items.push(
-            `<div class="kv-row"><div class="kv-key">${h}</div><div class="kv-val">${
-              isUrlLike(v) ? `<a href="${v}" target="_blank" rel="noopener">${v}</a>` : formatValue(v)
-            }</div></div>`
-          );
-        });
-
-        if (items.length){
-          details.innerHTML = `<div class="kv">${items.join('')}</div>`;
-          const detailsId = `row-details-${groupIdx}-${idx}`;
-          details.id = detailsId;
-          rowEl.setAttribute('aria-controls', detailsId);
-          rowEl.appendChild(details);
-        }
-      }
-
-      // Click/keyboard handlers
-      const onRowClick = (e) => {
-        if (e.defaultPrevented) return;
-        if (isInteractive(e.target, rowEl)) return;
-        toggleRow(rowEl);
-      };
-      const onRowKey = (e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          toggleRow(rowEl);
-        }
-      };
-      rowEl.addEventListener('click', onRowClick);
-      rowEl.addEventListener('keydown', onRowKey);
-      rowEl.querySelectorAll('a, button, select, input, textarea, [role="button"]').forEach(el => {
-        el.addEventListener('click', ev => ev.stopPropagation());
+    const chips = Array.isArray(state.filters?.chips) ? state.filters.chips : [];
+    if (chips.length){
+      rows = rows.filter(r=>{
+        const hay = Object.values(r).join('|').toLowerCase();
+        return chips.every(tag => hay.includes(String(tag).toLowerCase()));
       });
+    }
 
-      grid.appendChild(rowEl);
+    if (state.filters?.issuer){
+      rows = rows.filter(r => (r.issuer||'') === state.filters.issuer);
+    }
+    if (state.filters?.network){
+      rows = rows.filter(r => (r.network||'') === state.filters.network);
+    }
+    if (state.filters?.country){
+      rows = rows.filter(r => (r.country||'') === state.filters.country);
+    }
+
+    if (!rows.length){
+      grid.innerHTML = '';
+      if (empty) empty.style.display = 'block';
+      setDiag('No rows to show (check filters or sheet).');
+      return;
+    } else {
+      if (empty) empty.style.display = 'none';
+      setDiag('');
+    }
+
+    // ---- anchors + scoring for every row ----
+    const anchors = prepareAnchors(state.rows || [], headers);
+    const items   = rows.map(r => ({ row: r, ...scoreRow(r, headers, anchors) }));
+
+    // ---- sorting chosen in the pill ----
+    const sortBy = state.filters?.sort || 'Overall (sum of scores)';
+    items.sort((a,b) => {
+      if (sortBy.startsWith('Overall'))  return (b.total - a.total) || (a.row.card||'').localeCompare(b.row.card||'');
+      if (sortBy === 'Rewards')          return (b.rewards - a.rewards) || (b.rewardScore - a.rewardScore);
+      if (sortBy === 'Annual Fee')       return (b.feeScore - a.feeScore) || (a.fee - b.fee);
+      return (b.total - a.total);
     });
-  });
 
-  // meta text stays generic
-  const metaEl = document.getElementById('meta');
-  if (metaEl) metaEl.textContent =
-    `${withScore.length} card${withScore.length!==1?'s':''} shown • Sort: ${mode}`;
+    // ---- define columns (image + name + metric + rest of CSV) ----
+    const imageHeader = headerFor(IMAGE_FIELDS);
+
+    // hide duplicates + unwanted cols
+    const EXCLUDE = new Set([
+      'Card','Card Name','Name','Product','Card_name',
+      'id','name','logoUrl',
+      imageHeader
+    ]);
+
+    const columns = [
+      {
+        key: '__img__', label: '', class: 'cimg',
+        render: it => {
+          const src = getImage(it.row) || PLACEHOLDER_IMG;
+          return `<img src="${src}" alt="${formatValue(it.row.card)}" onerror="this.onerror=null;this.src='${PLACEHOLDER_IMG}';">`;
+        }
+      },
+      { key: '__card__', label: 'Card', class: 'card', render: it => formatValue(it.row.card) }
+    ];
+
+    if (sortBy.startsWith('Overall')){
+      columns.push({
+        key: '__score__', label: 'Score', class: 'num',
+        render: it => {
+          const v = Number.isFinite(it.display) ? it.display : it.total;
+          return Number.isFinite(v) ? (''+Number(v).toFixed(1)).replace(/\.0$/, '') : '—';
+        }
+      });
+    } else if (sortBy === 'Rewards'){
+      columns.push({
+        key: '__rewards__', label: 'Rewards', class: 'num',
+        render: it => Number.isFinite(it.rewards) ? `${Number(it.rewards).toFixed(1).replace(/\.0$/, '')}%` : '—'
+      });
+    } else if (sortBy === 'Annual Fee'){
+      columns.push({
+        key: '__fee__', label: 'Annual Fee', class: 'num',
+        render: it => Number.isFinite(it.fee) ? `${formatCurrency(it.fee)}/yr` : '—'
+      });
+    }
+
+    // Append remaining CSV columns (except excluded)
+    headers.forEach(h => {
+      if (!h || EXCLUDE.has(h)) return;
+      columns.push({
+        key: `raw:${h}`, label: h,
+        render: it => {
+          const v = it.row._raw[h];
+          if (v === undefined || isBlankish(v)) return '';
+          return isUrlLike(v) ? `<a href="${v}" target="_blank" rel="noopener">${v}</a>` : formatValue(v);
+        }
+      });
+    });
+
+    // ---- build DOM table ----
+    const wrap  = document.createElement('div'); wrap.className = 'table-wrap';
+    const table = document.createElement('table'); table.className = 'rank-table datagrid';
+
+    // head
+    const thead = document.createElement('thead');
+    const trh   = document.createElement('tr');
+    columns.forEach(c => {
+      const th = document.createElement('th');
+      th.textContent = c.label || '';
+      if (c.class) th.classList.add(c.class);
+      trh.appendChild(th);
+    });
+    thead.appendChild(trh);
+
+    // body
+    const tbody = document.createElement('tbody');
+    items.forEach(it => {
+      const tr = document.createElement('tr');
+      columns.forEach(c => {
+        const td = document.createElement('td');
+        if (c.class) td.classList.add(c.class);
+        td.innerHTML = c.render(it);
+        tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
+    });
+
+    table.appendChild(thead);
+    table.appendChild(tbody);
+    wrap.appendChild(table);
+
+    grid.innerHTML = '';
+    grid.appendChild(wrap);
+
+  } catch (err){
+    console.error('[ui.render] error:', err);
+    setDiag('Render error: ' + (err?.message || String(err)));
+    if (grid) grid.innerHTML = '';
+    if (empty) empty.style.display = 'block';
+  }
 }
 
+/* =========================================================
+   Controls: build sort options (and keep legacy selects happy)
+   ========================================================= */
 export function buildControlsOptions(){
-  const issuerEl = document.getElementById('issuer');
+  // legacy selects (hidden in your HTML/CSS but keep them populated)
+  const issuerEl  = document.getElementById('issuer');
   const networkEl = document.getElementById('network');
   const countryEl = document.getElementById('country');
 
-  setOptions(issuerEl, uniqueSorted(state.rows.map(r=>r.issuer)), 'All issuers');
-  setOptions(networkEl, uniqueSorted(state.rows.map(r=>r.network)), 'All networks');
-  setOptions(countryEl, uniqueSorted(state.rows.map(r=>r.country)), 'All countries');
+  if (issuerEl)  setOptions(issuerEl,  uniqueSorted((state.rows||[]).map(r=>r.issuer)),  'All issuers');
+  if (networkEl) setOptions(networkEl, uniqueSorted((state.rows||[]).map(r=>r.network)), 'All networks');
+  if (countryEl) setOptions(countryEl, uniqueSorted((state.rows||[]).map(r=>r.country)), 'All countries');
 
-  const sortEl = document.getElementById('sort'); sortEl.innerHTML = '';
-  ['Overall (sum of scores)','Rewards','Annual Fee'].forEach(o=>{
-    const opt = document.createElement('option'); opt.value=o; opt.textContent=o; sortEl.appendChild(opt);
+  // Sort pill options
+  const sortEl = document.getElementById('sort');
+  if (!sortEl) return;
+
+  const choices = [
+    'Overall (sum of scores)',
+    'Rewards',
+    'Annual Fee'
+  ];
+  sortEl.innerHTML = '';
+  choices.forEach(o => {
+    const opt = document.createElement('option');
+    opt.value = o; opt.textContent = o;
+    sortEl.appendChild(opt);
   });
 
   if (!state.filters) state.filters = {};
-  if (!state.filters.sort) state.filters.sort = 'Overall (sum of scores)';
+  if (!state.filters.sort) state.filters.sort = choices[0];
   sortEl.value = state.filters.sort;
+}
+
+/* =========================================================
+   Search chips — BETWEEN search & sort
+   ========================================================= */
+let chipListEl = null;
+
+function renderChips(){
+  if (!chipListEl) return;
+  const chips = Array.isArray(state.filters?.chips) ? state.filters.chips : [];
+  chipListEl.innerHTML = chips.map((txt, i)=>(
+    `<span class="chip"><span class="chip__text">${formatValue(txt)}</span><button class="chip__x" type="button" data-index="${i}" aria-label="Remove chip">×</button></span>`
+  )).join('');
+}
+
+function addChip(text){
+  const t = String(text || '').trim();
+  if (!t) return;
+  if (!state.filters) state.filters = {};
+  if (!Array.isArray(state.filters.chips)) state.filters.chips = [];
+  const exists = state.filters.chips.some(x => String(x).toLowerCase() === t.toLowerCase());
+  if (!exists) state.filters.chips.push(t);
+  renderChips();
+  render();
+}
+
+function removeChipAt(index){
+  if (!Array.isArray(state.filters?.chips)) return;
+  state.filters.chips.splice(index, 1);
+  renderChips();
+  render();
+}
+
+export function initSearchChips(){
+  const filters = document.querySelector('.filters');
+  const searchCtl = document.querySelector('.control-search');
+  const input   = document.getElementById('search');
+  if (!filters || !searchCtl || !input) return;
+
+  if (!state.filters) state.filters = {};
+  if (!Array.isArray(state.filters.chips)) state.filters.chips = [];
+
+  // remove any legacy inline chip list
+  const oldInline = searchCtl.querySelector('#chipList');
+  if (oldInline) oldInline.remove();
+
+  // create chips row immediately after the search control
+  let row = document.getElementById('chipRow');
+  if (!row){
+    row = document.createElement('div');
+    row.id = 'chipRow';
+    row.className = 'chips-row';                  // <-- match CSS
+    if (searchCtl.nextSibling) {
+      filters.insertBefore(row, searchCtl.nextSibling);
+    } else {
+      filters.appendChild(row);
+    }
+  }
+  chipListEl = row;
+
+  // Enter -> chip
+  const addFromInput = () => {
+    const raw = input.value.trim();
+    if (!raw) return;
+    addChip(raw);
+    input.value = '';
+  };
+  input.addEventListener('keydown', (e)=>{
+    if (e.key === 'Enter'){
+      e.preventDefault();
+      addFromInput();
+    }
+  });
+
+  // remove chip (event delegation)
+  chipListEl.addEventListener('click', (e)=>{
+    const btn = e.target.closest('.chip__x');     // <-- match CSS
+    if (!btn) return;
+    const idx = Number(btn.dataset.index);
+    if (!Number.isNaN(idx)) removeChipAt(idx);
+  });
+
+  renderChips();
 }
