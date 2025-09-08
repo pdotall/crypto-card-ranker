@@ -55,6 +55,40 @@ function formatCurrency(n){
   return '$' + fixed.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 }
 
+/* ---------- search / highlight helpers ---------- */
+function escapeRegExp(s){ return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+
+function highlightText(str, terms){
+  if (!terms?.length) return String(str ?? '');
+  let out = String(str ?? '');
+  for (const t of terms){
+    if (!t) continue;
+    const rx = new RegExp(`(${escapeRegExp(String(t))})`, 'ig');
+    out = out.replace(rx, '<mark class="hl">$1</mark>');
+  }
+  return out;
+}
+
+function rowHaystack(row, headers){
+  const parts = [];
+  // 1) every raw cell from the sheet
+  if (row && row._raw && Array.isArray(headers)){
+    for (const h of headers){
+      const v = row._raw[h];
+      if (v !== undefined && v !== null) parts.push(String(v));
+    }
+  }
+  // 2) also include normalized/visible properties (issuer, network, etc.)
+  for (const k of Object.keys(row || {})){
+    if (k === '_raw') continue;
+    const v = row[k];
+    if (v === undefined || v === null) continue;
+    if (typeof v === 'object') continue; // skip nested objects
+    parts.push(String(v));
+  }
+  return parts.join(' | ').toLowerCase();
+}
+
 /* =========================================================
    TABLE RENDER
    ========================================================= */
@@ -67,18 +101,23 @@ export function render(){
     let rows = Array.isArray(state.rows) ? [...state.rows] : [];
     const headers = Array.isArray(state.headers) ? state.headers : [];
 
+    // Build haystacks once for speed
+    const haystacks = new Map(); // row -> hay
+    const getHay = (r) => {
+      if (!haystacks.has(r)) haystacks.set(r, rowHaystack(r, headers));
+      return haystacks.get(r);
+    };
+
     // ---- filters (search + chips + legacy) ----
     const q = (state.filters?.search || '').trim().toLowerCase();
     if (q){
-      rows = rows.filter(r =>
-        Object.values(r).some(v => (v||'').toString().toLowerCase().includes(q))
-      );
+      rows = rows.filter(r => getHay(r).includes(q));
     }
 
     const chips = Array.isArray(state.filters?.chips) ? state.filters.chips : [];
     if (chips.length){
       rows = rows.filter(r=>{
-        const hay = Object.values(r).join('|').toLowerCase();
+        const hay = getHay(r);
         return chips.every(tag => hay.includes(String(tag).toLowerCase()));
       });
     }
@@ -112,14 +151,23 @@ export function render(){
     items.sort((a,b) => {
       if (sortBy.startsWith('Overall'))  return (b.total - a.total) || (a.row.card||'').localeCompare(b.row.card||'');
       if (sortBy === 'Rewards')          return (b.rewards - a.rewards) || (b.rewardScore - a.rewardScore);
-      if (sortBy === 'Annual Fee')       return (b.feeScore - a.feeScore) || (a.fee - b.fee);
+      if (sortBy === 'Annual Fee')       return (b.feeScore - a.feeScore) || (a.fee - b.fee); // lower fee -> higher score
       return (b.total - a.total);
     });
+
+    // terms to highlight (chips + live search)
+    const hlTerms = [
+      ...chips.map(s => String(s || '').trim()).filter(Boolean),
+      ...(q ? [q] : [])
+    ];
 
     // ---- define columns (image + name + metric + rest of CSV) ----
     const imageHeader = headerFor(IMAGE_FIELDS);
 
-    // hide duplicates + unwanted cols
+    // Hide noisy/duplicate columns:
+    // - all name variants we render as the first "Card" column
+    // - logo/image col (we render our own thumbnail)
+    // - id/name/logoUrl (you asked to hide them)
     const EXCLUDE = new Set([
       'Card','Card Name','Name','Product','Card_name',
       'id','name','logoUrl',
@@ -134,7 +182,10 @@ export function render(){
           return `<img src="${src}" alt="${formatValue(it.row.card)}" onerror="this.onerror=null;this.src='${PLACEHOLDER_IMG}';">`;
         }
       },
-      { key: '__card__', label: 'Card', class: 'card', render: it => formatValue(it.row.card) }
+      {
+        key: '__card__', label: 'Card', class: 'card',
+        render: it => highlightText(formatValue(it.row.card), hlTerms)
+      }
     ];
 
     if (sortBy.startsWith('Overall')){
@@ -142,18 +193,27 @@ export function render(){
         key: '__score__', label: 'Score', class: 'num',
         render: it => {
           const v = Number.isFinite(it.display) ? it.display : it.total;
-          return Number.isFinite(v) ? (''+Number(v).toFixed(1)).replace(/\.0$/, '') : '—';
+          return highlightText(
+            Number.isFinite(v) ? (''+Number(v).toFixed(1)).replace(/\.0$/, '') : '—',
+            hlTerms
+          );
         }
       });
     } else if (sortBy === 'Rewards'){
       columns.push({
         key: '__rewards__', label: 'Rewards', class: 'num',
-        render: it => Number.isFinite(it.rewards) ? `${Number(it.rewards).toFixed(1).replace(/\.0$/, '')}%` : '—'
+        render: it => highlightText(
+          Number.isFinite(it.rewards) ? `${Number(it.rewards).toFixed(1).replace(/\.0$/, '')}%` : '—',
+          hlTerms
+        )
       });
     } else if (sortBy === 'Annual Fee'){
       columns.push({
         key: '__fee__', label: 'Annual Fee', class: 'num',
-        render: it => Number.isFinite(it.fee) ? `${formatCurrency(it.fee)}/yr` : '—'
+        render: it => highlightText(
+          Number.isFinite(it.fee) ? `${formatCurrency(it.fee)}/yr` : '—',
+          hlTerms
+        )
       });
     }
 
@@ -165,7 +225,11 @@ export function render(){
         render: it => {
           const v = it.row._raw[h];
           if (v === undefined || isBlankish(v)) return '';
-          return isUrlLike(v) ? `<a href="${v}" target="_blank" rel="noopener">${v}</a>` : formatValue(v);
+          const text = formatValue(v);
+          const marked = highlightText(text, hlTerms);
+          return isUrlLike(v)
+            ? `<a href="${v}" target="_blank" rel="noopener">${marked}</a>`
+            : marked;
         }
       });
     });
@@ -242,13 +306,14 @@ export function buildControlsOptions(){
     sortEl.appendChild(opt);
   });
 
+  // set / keep current selection
   if (!state.filters) state.filters = {};
   if (!state.filters.sort) state.filters.sort = choices[0];
   sortEl.value = state.filters.sort;
 }
 
 /* =========================================================
-   Search chips — BETWEEN search & sort
+   Search chips — in a row BETWEEN search & sort
    ========================================================= */
 let chipListEl = null;
 
@@ -256,7 +321,7 @@ function renderChips(){
   if (!chipListEl) return;
   const chips = Array.isArray(state.filters?.chips) ? state.filters.chips : [];
   chipListEl.innerHTML = chips.map((txt, i)=>(
-    `<span class="chip"><span class="chip__text">${formatValue(txt)}</span><button class="chip__x" type="button" data-index="${i}" aria-label="Remove chip">×</button></span>`
+    `<span class="chip"><span class="chip__text">${formatValue(txt)}</span><button class="chip__x" data-index="${i}" aria-label="Remove">×</button></span>`
   )).join('');
 }
 
@@ -280,32 +345,32 @@ function removeChipAt(index){
 
 export function initSearchChips(){
   const filters = document.querySelector('.filters');
-  const searchCtl = document.querySelector('.control-search');
+  const control = document.querySelector('.control-search');
   const input   = document.getElementById('search');
-  if (!filters || !searchCtl || !input) return;
+  const sortCtl = document.getElementById('sort')?.closest('.control') || null;
+
+  if (!filters || !control || !input) return;
 
   if (!state.filters) state.filters = {};
   if (!Array.isArray(state.filters.chips)) state.filters.chips = [];
 
-  // remove any legacy inline chip list
-  const oldInline = searchCtl.querySelector('#chipList');
+  const oldInline = control.querySelector('#chipList');
   if (oldInline) oldInline.remove();
 
-  // create chips row immediately after the search control
   let row = document.getElementById('chipRow');
   if (!row){
     row = document.createElement('div');
     row.id = 'chipRow';
-    row.className = 'chips-row';                  // <-- match CSS
-    if (searchCtl.nextSibling) {
-      filters.insertBefore(row, searchCtl.nextSibling);
+    row.className = 'chip-row';
+    // insert chips immediately after search control
+    if (control.nextSibling) {
+      control.parentNode.insertBefore(row, control.nextSibling);
     } else {
-      filters.appendChild(row);
+      control.after(row);
     }
   }
   chipListEl = row;
 
-  // Enter -> chip
   const addFromInput = () => {
     const raw = input.value.trim();
     if (!raw) return;
@@ -319,9 +384,8 @@ export function initSearchChips(){
     }
   });
 
-  // remove chip (event delegation)
   chipListEl.addEventListener('click', (e)=>{
-    const btn = e.target.closest('.chip__x');     // <-- match CSS
+    const btn = e.target.closest('.chip__x');
     if (!btn) return;
     const idx = Number(btn.dataset.index);
     if (!Number.isNaN(idx)) removeChipAt(idx);
